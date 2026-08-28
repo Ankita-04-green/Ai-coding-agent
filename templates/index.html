@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding Agent</title>
+    <link rel="stylesheet" type="text/css"   href="{{ url_for('static', filename='css/style.css')}}">
+</head>
+
+<body>
+   
+
+<div class="app">
+
+    <!-- Main Content -->
+    <main class="main">
+
+        <!-- Header -->
+        <header class="header">
+
+            <div>
+                <h2>Coding Agent</h2>
+                <span class="subtitle">
+                    AI-powered project debugging
+                </span>
+            </div>
+
+            <div class="header-right">
+                <div class="model">
+                    <span class="green-dot"></span>
+                    Agent Online
+                </div>
+            </div>
+
+        </header>
+
+
+        <!-- Chat Area -->
+        <section class="chat">
+
+            <!-- Welcome -->
+            <div class="welcome" id="welcome">
+
+                <div class="welcome-icon">
+                    >_<
+                </div>
+
+                <h1>How can I help with your project?</h1>
+
+                <p>
+                    Upload your project folder and describe the issue.
+                    I'll inspect the files, identify the problem,
+                    make the necessary changes and test the fix.
+                </p>
+
+            </div>
+            <div id="chat-box"></div>
+            <div class = "download-conatiner">
+                <button
+                    id="download-project-btn"
+                    class="download-project-btn"
+                    style="display: none;"
+                    onclick="downloadProject()">
+                    ↓ Download Modified Project
+                </button>
+            </div>
+        </section>
+
+
+        <!-- Input Area -->
+        <div class="input-wrapper">
+
+            <div class="input-box">
+
+                <textarea id="prompt"
+                    placeholder="Describe the issue or ask the agent to modify your project..."
+                    rows="3"></textarea>
+                <span id="input"></span>
+                <div class="input-bottom">
+
+                    <label class="folder-button">
+
+                        <input type="file" webkitdirectory directory multiple id="projectFolder">
+
+                        <button class="project-button" onclick="document.getElementById('projectFolder').click()">📁Include Project Folder</button>
+
+                    </label>
+
+                    <div class="input-actions">
+
+                        <button class="run-button" id="sendButton">
+                            Run Agent
+                            <span>➤</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <p class="disclaimer">
+                CodeFix AI can modify project files and execute code.
+                Review changes before using them in production.
+            </p>
+
+        </div>
+
+    </main>
+
+</div>
+ <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+ <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

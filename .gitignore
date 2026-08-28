@@ -1,0 +1,5 @@
+.env
+conversations.db
+__pycache__/
+uploaded_projects/
+config.py
