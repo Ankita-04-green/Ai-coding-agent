@@ -24,11 +24,13 @@ def detect_injection(message):
             return True
     return False
 
-
-def run_agent(prompt, working_directory=None, conversation = None):
+def run_agent(prompt, working_directory=None, conversation = None, status_callback=None):
     if detect_injection(prompt):
         return "I cannot process that request.", False
-    
+    def send_status(message):
+        if status_callback:
+            status_callback(message)
+
     load_dotenv()
     api_key_1 = os.environ.get("GEMINI_API_KEY_1")
     api_key_2 = os.environ.get("GEMINI_API_KEY_2")
@@ -123,7 +125,7 @@ def run_agent(prompt, working_directory=None, conversation = None):
 
     model = "gemini-3.6-flash"
 
-    max_iters = 10
+    max_iters = 11
     for i in range(0, max_iters):
         if i >= max_iters - 2:
             print(f"WARNING: approaching iteration limit ({i}/{max_iters})")
@@ -176,6 +178,19 @@ def run_agent(prompt, working_directory=None, conversation = None):
         
         if response.function_calls:
             for function_call_part in response.function_calls:
+                tool_name = function_call_part.name
+
+                status_messages = {
+                    "get_file_info": "Inspecting your project files...",
+                    "get_file_content": "Reading the relevant file...",
+                    "search_file": "Searching your project for the error...",
+                    "run_python_file": "Running the code to test the issue...",
+                    "write_file": "Applying the fix..."
+                }
+
+                status = status_messages.get(tool_name, "Working on your project...")
+                send_status(status)
+
                 result, project_modified = call_function(function_call_part, working_directory)
                 messages.append(result)
         else:
@@ -183,7 +198,12 @@ def run_agent(prompt, working_directory=None, conversation = None):
             # print("Agent Response: ", response.text)
             return response.text, project_modified
     else:
+        send_status("Finishing the analysis...")
         messages.append(types.Content(role = "user", parts = [types.Part(text = "You've reached the maximum number of steps. Give your best answer with what you have. Do not call any tools.")]))
         final_config = types.GenerateContentConfig(system_instruction=system_prompt + "\nIMPORTANT: this is the final response. Do not call any tools. Return only a text response.")
-        final = current_client.models.generate_content(model=model, contents=messages, config=final_config)
-        return final.text, project_modified
+        try:
+            final = current_client.models.generate_content(model=model, contents=messages, config=final_config)
+            return final.text, project_modified
+        except Exception as e:
+            print("Final response generation failed: ", e)
+            return "An error occurred while contacting the AI service.", project_modified

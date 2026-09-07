@@ -36,35 +36,61 @@ async function sendPrompt() {
     sendButton.disabled = true;
     sendButton.textContent = "Run Agent ➤";
 
-    showTyping()
+   showTyping()
    
     try {
        
         const response = await fetch("/chat", {
             method: "POST",
-
-            // headers: {
-            //     "Content-Type": "application/json"
-            // },
-
             body: formData
         });
+
         if (!response.ok) {
             throw new Error("Server error: " + response.status);
         }
 
-        const data = await response.json();
-        document.getElementById("typing")?.remove();
-        appendMessage("Agent", data.response);
-        if (data.project_modified) {
-            showDownloadButton();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while(true) {
+            const {value, done} = await reader.read();
+            if (done) {
+                break;
+            }
+            buffer += decoder.decode(value, {
+                stream: true
+            });
+            const events = buffer.split("\n\n");
+            buffer = events.pop();
+            for (const event of events) {
+                if (!event.startsWith("data:")) {
+                    continue;
+                }
+                const jsonData = event.substring(5).trim();
+                if (!jsonData) {
+                    continue;
+                }
+                const data = JSON.parse(jsonData);
+                if (data.type === "status") {
+                    document.getElementById("typing")?.remove();
+                    showAgentStatus(data.message);
+                }
+                else if (data.type === "final") {
+                    document.getElementById("typing")?.remove();
+                    document.getElementById("agent-status")?.remove();
+                    appendMessage("Agent", data.response);
+                    if (data.project_modified) {
+                        showDownloadButton();
+                    }
+                    scrollToBottom();
+                }
+            }
         }
-        scrollToBottom();
-
     } catch (error) {
 
         console.error("Error:", error);
         document.getElementById("typing")?.remove();
+        document.getElementById("agent-status")?.remove();
         appendMessage("Agent", "Something went wrong while contacting the agent.")
 
     } finally {
@@ -96,10 +122,8 @@ function appendMessage(sender, text) {
     } else{
         msg.classList.add("agent");
         msg.innerHTML = DOMPurify.sanitize(marked.parse(String(text)));
-        // msg.innerHTML = `${text}`;
         styleDiffBlocks(msg)
     }
-    // msg.innerHTML = `${text}`;
     chatBox.appendChild(msg);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -184,4 +208,19 @@ function showDownloadButton() {
 
 function downloadProject() {
     window.location.href = "/download-project";
+}
+
+function showAgentStatus(text) {
+    let chatBox = document.getElementById("chat-box");
+    let status = document.getElementById("agent-status");
+    if(!status) {
+        status = document.createElement("div");
+        status.id = "agent-status";
+        status.classList.add("agent-status");
+        chatBox.appendChild(status);
+    }
+    status.innerHTML = `<span class="status-spinner"></span>
+    <span>${text}</span>`;
+    // chatBox.scrollTop = chatBox.scrollHeight;
+    scrollToBottom();
 }

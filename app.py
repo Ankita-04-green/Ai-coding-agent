@@ -2,11 +2,14 @@ import os
 import io
 import zipfile
 import uuid
+import json
+import threading
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, session, send_file
+from flask import Flask, render_template, request, jsonify, session, send_file, Response, stream_with_context
 from flask_cors import CORS
 from agent import run_agent
 from conversation import init_db, save_message, get_messages
+from queue import Queue
 
 load_dotenv()
 app = Flask(__name__)
@@ -58,11 +61,59 @@ def chat():
         conversation = get_messages(project_id)
         save_message(project_id, "user", prompt)
 
-    response, project_modified = run_agent(prompt, working_directory, conversation)
+    def generate():
+        status_queue = Queue()
 
-    if project_id:
-        save_message(project_id, "model", response)
-    return jsonify({"response": response, "project_modified": project_modified})
+        def status_callback(message):
+            status_queue.put(message)
+
+        result = {}
+        def run():
+            response, project_modified = run_agent(prompt, working_directory, conversation, status_callback=status_callback)
+            result["response"] = response
+            result["project_modified"] = project_modified
+
+        agent_thread = threading.Thread(target=run)
+        agent_thread.start()
+
+        while agent_thread.is_alive():
+            try:
+                status = status_queue.get(timeout=0.5)
+                yield f"data: {json.dumps({
+                    'type': 'status',
+                    'message': status
+                })}\n\n"
+            except:
+                pass
+
+        while not status_queue.empty():
+            status = status_queue.get()
+            yield f"data: {json.dumps({
+                'type': 'status',
+                'message': status
+            })}\n\n"
+        agent_thread.join()
+
+        response = result.get("response")
+        project_modified = result.get("project_modified", False)
+        if project_id:
+            if response:
+                save_message(project_id, "model", response)
+            else:
+                print("WARNING: No response received, skipping database save.")
+        
+        yield f"data: {json.dumps({
+            'type': 'final',
+            'response': response,
+            'project_modified': project_modified
+        })}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream"
+    )
+      
+    # return jsonify({"response": response, "project_modified": project_modified})
 
 @app.route("/download-project")
 def download_project():
