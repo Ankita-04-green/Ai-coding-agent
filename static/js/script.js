@@ -78,9 +78,9 @@ async function sendPrompt() {
                 else if (data.type === "final") {
                     document.getElementById("typing")?.remove();
                     document.getElementById("agent-status")?.remove();
-                    appendMessage("Agent", data.response);
+                    const agentMessage = appendMessage("Agent", data.response);
                     if (data.project_modified) {
-                        showDownloadButton();
+                        showDownloadButton(agentMessage);
                     }
                     scrollToBottom();
                 }
@@ -126,6 +126,7 @@ function appendMessage(sender, text) {
     }
     chatBox.appendChild(msg);
     chatBox.scrollTop = chatBox.scrollHeight;
+    return msg;
 }
 
 function showTyping() {
@@ -201,9 +202,10 @@ function styleDiffBlocks(container) {
     });
 }
 
-function showDownloadButton() {
+function showDownloadButton(agentMessage) {
     const button = document.getElementById("download-project-btn");
     button.style.display = "block";
+    agentMessage.appendChild(button);
 }
 
 function downloadProject() {

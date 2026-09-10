@@ -158,6 +158,7 @@ def run_agent(prompt, working_directory=None, conversation = None, status_callba
                         print("Both Gemini API keys have reached their current quota. Please try again later.")
                         return "Something went wrong while contacting the agent.", False
               else:
+                    print("ERROR: ", e)
                     return "An error occurred while contacting the AI service.", False
     
         if response is None:
